@@ -14,7 +14,7 @@ def get_candlestick_data(symbol):
     api_url = "https://api.binance.com/api/v3/klines"
     params = {
         "symbol": symbol,
-        "interval": "1d",
+        "interval": "4h",
         "limit": 70
     }
     response = requests.get(api_url, params=params)
@@ -67,15 +67,28 @@ def connors_rsi(close_prices, len_rsi=6, len_updown=2, len_roc=100):
     crsi_values = np.mean([rsi_values, updown_rsi_values, percentrank_values], axis=0)
 
     return crsi_values[-1]
+###################################################################################################################
+import pandas as pd
+import ta
 
-
+def calculate_cvd_ma(candlestick_data, ma_len=52):
+    cvd = []
+    for data in candlestick_data:
+        open_price, high_price, low_price, close_price, volume = data
+        if open_price < close_price:
+            cvd.append(volume)
+        else:
+            cvd.append(-volume)
+    cvd = pd.Series(cvd)
+    ma = cvd.rolling(window=ma_len).mean()
+    return cvd.iloc[-1], ma.iloc[-1]
 ###################################################################################################################
 # Получение списка торговых пар
 all_pairs = get_all_pairs_with_usdt()
 
 # Выбор первой торговой пары и выгрузка свечей
 if len(all_pairs) > 0:
-    for symbol in all_pairs[1:2]:
+    for symbol in all_pairs[1:]:
         candlestick_data = get_candlestick_data(symbol)
         print(f"\nCandlestick data for {symbol}:")
         print(candlestick_data)
@@ -87,4 +100,5 @@ if len(all_pairs) > 0:
         last_rsi_histo_param = calculate_rsi_histo_param(close_prices)
         print('RSI HistoAlert Strategy', last_rsi_histo_param)
         print('RSI Connors Strategy', connors_rsi(close_prices))
+        print('CVD MA Strategy', calculate_cvd_ma(candlestick_data))
 
