@@ -15,7 +15,7 @@ def get_candlestick_data(symbol):
     params = {
         "symbol": symbol,
         "interval": "4h",
-        "limit": 70
+        "limit": 100
     }
     response = requests.get(api_url, params=params)
     data = response.json()
@@ -83,22 +83,45 @@ def calculate_cvd_ma(candlestick_data, ma_len=52):
     ma = cvd.rolling(window=ma_len).mean()
     return cvd.iloc[-1], ma.iloc[-1]
 ###################################################################################################################
+###################################################################################################################
 # Получение списка торговых пар
 all_pairs = get_all_pairs_with_usdt()
-
+print(len(all_pairs))
+count = 0
 # Выбор первой торговой пары и выгрузка свечей
 if len(all_pairs) > 0:
     for symbol in all_pairs[1:]:
         candlestick_data = get_candlestick_data(symbol)
-        print(f"\nCandlestick data for {symbol}:")
-        print(candlestick_data)
+        #print(f"\nCandlestick data for {symbol}:")
+        #print(candlestick_data)
 
         # Извлечение цен закрытия
         close_prices = [candle[3] for candle in candlestick_data]
 
         # Расчет значения параметра индикатора для последней свечи
         last_rsi_histo_param = calculate_rsi_histo_param(close_prices)
-        print('RSI HistoAlert Strategy', last_rsi_histo_param)
-        print('RSI Connors Strategy', connors_rsi(close_prices))
-        print('CVD MA Strategy', calculate_cvd_ma(candlestick_data))
-
+        last_connors_rsi = connors_rsi(close_prices)
+        cvd, cvd_ma = calculate_cvd_ma(candlestick_data)
+        #print('RSI Connors Strategy', last_connors_rsi)
+        #print('RSI HistoAlert Strategy', last_rsi_histo_param)
+        #print('CVD MA Strategy', cvd, cvd_ma )
+        if last_rsi_histo_param > 0 and cvd < cvd_ma and last_connors_rsi > 40:
+            print('\n')
+            print(symbol, "⬇️ Short Sell")
+            print('RSI Connors Strategy', last_connors_rsi)
+            print('RSI HistoAlert Strategy', last_rsi_histo_param)
+            print('CVD MA Strategy', cvd, cvd_ma )
+            print('\n')
+        if last_rsi_histo_param < 0 and cvd > cvd_ma and last_connors_rsi < 15:
+            print('\n')
+            print(symbol, "⬆️ Long Buy")
+            print('RSI Connors Strategy', last_connors_rsi)
+            print('RSI HistoAlert Strategy', last_rsi_histo_param)
+            print('CVD MA Strategy', cvd, cvd_ma)
+            print('\n')
+        count += 1
+        if count % 5 == 0:
+            print(count, end = '... ')
+        if count % 50 == 0:
+            print('\n')
+print('✅ Process completed ✅')
