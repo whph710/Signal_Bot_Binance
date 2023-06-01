@@ -31,7 +31,7 @@ def get_candlestick_data(symbol):
         volume = float(item[5])
         candle = [open_price, high_price, low_price, close_price, volume]
         candles.append(candle)
-    return candles[:-5]
+    return candles[:-6]
 
 
 def calculate_rsi_histo_param(close_prices, period=26, modify=1):
@@ -43,16 +43,37 @@ def calculate_rsi_histo_param(close_prices, period=26, modify=1):
     return rsi_main.iloc[-1] # Получение последнего значения
 
 
+def connors_rsi(close_prices, len_rsi=6, len_updown=1, len_roc=100):
+    # Преобразование в объект Series
+    close_series = pd.Series(close_prices)
 
+    # Расчет RSI
+    rsi_values = rsi(close_series, window=len_rsi)
+
+    # Расчет updownrsi
+    updown_series = close_series.diff().apply(lambda x: 1 if x > 0 else -1)
+    updown_rsi_values = rsi(updown_series, window=len_updown)
+
+    # Расчет percentrank
+    roc_values = close_series.pct_change()
+    percentrank_values = roc_values.rolling(window=len_roc, min_periods=1).apply(lambda x: sum(x > 0) / len(x))
+
+    # Расчет CRSI
+    crsi_values = (rsi_values + updown_rsi_values + percentrank_values) / 3
+
+    return crsi_values.iloc[-1]
+
+
+###################################################################################################################
 # Получение списка торговых пар
 all_pairs = get_all_pairs_with_usdt()
 
 # Выбор первой торговой пары и выгрузка свечей
 if len(all_pairs) > 0:
-    for symbol in all_pairs:#[1:2]:
+    for symbol in all_pairs[1:]:
         candlestick_data = get_candlestick_data(symbol)
         print(f"\nCandlestick data for {symbol}:")
-        #print(candlestick_data)
+        print(candlestick_data)
 
         # Извлечение цен закрытия
         close_prices = [candle[3] for candle in candlestick_data]
@@ -60,4 +81,5 @@ if len(all_pairs) > 0:
         # Расчет значения параметра индикатора для последней свечи
         last_rsi_histo_param = calculate_rsi_histo_param(close_prices)
         print('RSI HistoAlert Strategy', last_rsi_histo_param)
+        print('RSI Connors Strategy', connors_rsi(close_prices))
 
